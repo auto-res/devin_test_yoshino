@@ -1,2 +1,4 @@
 # Experiment Logs
 # Format: timestamp | experiment_name | metrics
+2025-01-27 14:20:07 | pipeline_test | Epoch 0/1 | Train Loss: 1.5809 | Train Acc: 42.10% | Val Loss: 1.2718 | Val Acc: 53.38%
+2025-01-27 14:27:11 | pipeline_test | Epoch 0/1 | Train Loss: 1.6575 | Train Acc: 38.37% | Val Loss: 1.4470 | Val Acc: 47.05%

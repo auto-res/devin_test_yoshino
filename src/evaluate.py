@@ -59,8 +59,6 @@ def plot_training_curves(histories: Dict[str, Dict[str, list]],
     metrics = ['loss', 'accuracy']
     phases = ['train', 'val']
     
-    plt.style.use('seaborn')
-    
     for metric in metrics:
         plt.figure(figsize=(10, 6))
         for optimizer_name, history in histories.items():
@@ -69,7 +67,8 @@ def plot_training_curves(histories: Dict[str, Dict[str, list]],
                 if key in history:
                     plt.plot(history[key], 
                             label=f'{optimizer_name} ({phase})',
-                            linestyle='-' if phase == 'train' else '--')
+                            linestyle='-' if phase == 'train' else '--',
+                            alpha=0.8)
         
         plt.title(f'{metric.capitalize()} vs. Epoch')
         plt.xlabel('Epoch')
@@ -103,8 +102,9 @@ def plot_convergence_speed(histories: Dict[str, Dict[str, list]],
             epochs_to_converge[optimizer_name] = len(val_acc)
     
     plt.figure(figsize=(8, 6))
-    sns.barplot(x=list(epochs_to_converge.keys()), 
-                y=list(epochs_to_converge.values()))
+    plt.bar(range(len(epochs_to_converge)), 
+            list(epochs_to_converge.values()),
+            tick_label=list(epochs_to_converge.keys()))
     plt.title(f'Epochs to Reach {target_accuracy}% Accuracy')
     plt.xlabel('Optimizer')
     plt.ylabel('Epochs')
