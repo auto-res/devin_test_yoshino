@@ -3,11 +3,14 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-import logging
-from pathlib import Path
-from tqdm import tqdm
 from typing import Dict, Any, Optional
+import time
+from pathlib import Path
+import json
+from tqdm import tqdm
+import logging
+from torch.utils.tensorboard import SummaryWriter
+
 from .optimizers import NewOptimizer
 
 def train_epoch(model: nn.Module,
@@ -15,25 +18,13 @@ def train_epoch(model: nn.Module,
                criterion: nn.Module,
                optimizer: torch.optim.Optimizer,
                device: torch.device) -> Dict[str, float]:
-    """
-    Train for one epoch.
-    
-    Args:
-        model: Neural network model
-        train_loader: Training data loader
-        criterion: Loss function
-        optimizer: Optimizer
-        device: Device to train on
-    
-    Returns:
-        Dictionary containing training metrics
-    """
+    """Train for one epoch."""
     model.train()
     total_loss = 0
     correct = 0
     total = 0
     
-    for inputs, targets in train_loader:
+    for inputs, targets in tqdm(train_loader, desc="Training"):
         inputs, targets = inputs.to(device), targets.to(device)
         
         optimizer.zero_grad()
@@ -48,34 +39,22 @@ def train_epoch(model: nn.Module,
         correct += predicted.eq(targets).sum().item()
     
     return {
-        'train_loss': total_loss / len(train_loader),
-        'train_accuracy': 100. * correct / total
+        'loss': total_loss / len(train_loader),
+        'accuracy': 100. * correct / total
     }
 
 def validate(model: nn.Module,
             val_loader: DataLoader,
             criterion: nn.Module,
             device: torch.device) -> Dict[str, float]:
-    """
-    Validate the model.
-    
-    Args:
-        model: Neural network model
-        val_loader: Validation data loader
-        criterion: Loss function
-        device: Device to validate on
-    
-    Returns:
-        Dictionary containing validation metrics
-    """
+    """Validate the model."""
     model.eval()
     total_loss = 0
     correct = 0
     total = 0
     
-    
     with torch.no_grad():
-        for inputs, targets in val_loader:
+        for inputs, targets in tqdm(val_loader, desc="Validation"):
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
@@ -86,8 +65,8 @@ def validate(model: nn.Module,
             correct += predicted.eq(targets).sum().item()
     
     return {
-        'val_loss': total_loss / len(val_loader),
-        'val_accuracy': 100. * correct / total
+        'loss': total_loss / len(val_loader),
+        'accuracy': 100. * correct / total
     }
 
 def train_model(model: nn.Module,
@@ -97,27 +76,25 @@ def train_model(model: nn.Module,
                 optimizer_config: Dict[str, Any],
                 training_config: Dict[str, Any],
                 experiment_name: str,
-                device: torch.device) -> Dict[str, list]:
+                device: torch.device) -> Dict[str, Any]:
     """
-    Train a model with the specified optimizer.
+    Train a model with specified optimizer and configuration.
     
     Args:
-        model: Neural network model
+        model: The neural network model
         train_loader: Training data loader
         val_loader: Validation data loader
-        optimizer_name: Name of the optimizer
+        optimizer_name: Name of the optimizer to use
         optimizer_config: Optimizer configuration
         training_config: Training configuration
         experiment_name: Name of the experiment
         device: Device to train on
     
     Returns:
-        Dictionary containing training history
+        Dictionary containing training history and metrics
     """
-    logger = logging.getLogger(__name__)
-    writer = SummaryWriter(f'logs/runs/{experiment_name}')
+    criterion = nn.CrossEntropyLoss()
     
-    # Initialize optimizer
     if optimizer_name == 'new_optimizer':
         optimizer = NewOptimizer(model.parameters(), **optimizer_config)
     elif optimizer_name == 'adam':
@@ -125,56 +102,73 @@ def train_model(model: nn.Module,
     elif optimizer_name == 'sgd':
         optimizer = torch.optim.SGD(model.parameters(), **optimizer_config)
     else:
-        raise ValueError(f'Unknown optimizer: {optimizer_name}')
-    
-    criterion = nn.CrossEntropyLoss()
-    
-    # Training loop setup
-    epochs = training_config['epochs']
-    early_stopping_patience = training_config['early_stopping_patience']
-    val_interval = training_config['val_interval']
+        raise ValueError(f"Unknown optimizer: {optimizer_name}")
+
+    # Setup tensorboard
+    writer = SummaryWriter(f'logs/runs/{experiment_name}')
     
     best_val_acc = 0
     patience_counter = 0
-    history = {'train_loss': [], 'train_accuracy': [],
-              'val_loss': [], 'val_accuracy': []}
+    history = {
+        'train_loss': [], 'train_acc': [],
+        'val_loss': [], 'val_acc': [],
+        'epoch_times': []
+    }
     
-    # Create directory for model checkpoints
-    Path('models').mkdir(exist_ok=True)
-    
-    for epoch in range(epochs):
+    for epoch in range(training_config['epochs']):
+        epoch_start_time = time.time()
+        
         # Training phase
         train_metrics = train_epoch(model, train_loader, criterion, optimizer, device)
         
-        for key, value in train_metrics.items():
-            history[key].append(value)
-            writer.add_scalar(f'{key}/{optimizer_name}', value, epoch)
-        
         # Validation phase
-        if epoch % val_interval == 0:
+        if epoch % training_config['val_interval'] == 0:
             val_metrics = validate(model, val_loader, criterion, device)
             
-            for key, value in val_metrics.items():
-                history[key].append(value)
-                writer.add_scalar(f'{key}/{optimizer_name}', value, epoch)
+            # Log metrics
+            writer.add_scalar('Loss/train', train_metrics['loss'], epoch)
+            writer.add_scalar('Loss/val', val_metrics['loss'], epoch)
+            writer.add_scalar('Accuracy/train', train_metrics['accuracy'], epoch)
+            writer.add_scalar('Accuracy/val', val_metrics['accuracy'], epoch)
+            
+            
+            # Save metrics to history
+            history['train_loss'].append(train_metrics['loss'])
+            history['train_acc'].append(train_metrics['accuracy'])
+            history['val_loss'].append(val_metrics['loss'])
+            history['val_acc'].append(val_metrics['accuracy'])
+            
+            epoch_time = time.time() - epoch_start_time
+            history['epoch_times'].append(epoch_time)
             
             # Early stopping check
-            val_acc = val_metrics['val_accuracy']
-            if val_acc > best_val_acc:
-                best_val_acc = val_acc
+            if val_metrics['accuracy'] > best_val_acc:
+                best_val_acc = val_metrics['accuracy']
                 patience_counter = 0
-                torch.save(model.state_dict(), f'models/{experiment_name}_best.pth')
+                # Save best model
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'val_acc': best_val_acc,
+                }, f'models/{experiment_name}_best.pth')
             else:
                 patience_counter += 1
             
-            if patience_counter >= early_stopping_patience:
-                logger.info(f'Early stopping triggered at epoch {epoch}')
+            if patience_counter >= training_config['early_stopping_patience']:
+                print(f"Early stopping triggered after {epoch + 1} epochs")
                 break
             
-            logger.info(f'Epoch {epoch}: train_loss={train_metrics["train_loss"]:.4f}, '
-                       f'train_acc={train_metrics["train_accuracy"]:.2f}%, '
-                       f'val_loss={val_metrics["val_loss"]:.4f}, '
-                       f'val_acc={val_metrics["val_accuracy"]:.2f}%')
+            # Log to file
+            with open('logs/logs.txt', 'a') as f:
+                log_entry = (f"{time.strftime('%Y-%m-%d %H:%M:%S')} | "
+                           f"{experiment_name} | "
+                           f"Epoch {epoch}/{training_config['epochs']} | "
+                           f"Train Loss: {train_metrics['loss']:.4f} | "
+                           f"Train Acc: {train_metrics['accuracy']:.2f}% | "
+                           f"Val Loss: {val_metrics['loss']:.4f} | "
+                           f"Val Acc: {val_metrics['accuracy']:.2f}%\n")
+                f.write(log_entry)
     
     writer.close()
     return history
