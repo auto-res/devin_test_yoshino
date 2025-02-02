@@ -71,7 +71,15 @@ if __name__ == '__main__':
     print("\nValidation Results:")
     for opt_name, trials in results.items():
         print(f"\n{opt_name.upper()}:")
-        test_losses = [trial['test']['loss'] for trial in trials]
+        test_losses = [trial['test'].get('loss', float('inf')) for trial in trials]
         mean_loss = sum(test_losses) / len(test_losses)
         std_loss = torch.tensor(test_losses).std().item()
-        print(f"Test Loss: {mean_loss:.4f} ± {std_loss:.4f}")
+        
+        if 'accuracy' in trials[0]['test']:
+            test_accs = [trial['test']['accuracy'] for trial in trials]
+            mean_acc = sum(test_accs) / len(test_accs)
+            std_acc = torch.tensor(test_accs).std().item()
+            print(f"Test Loss: {mean_loss:.4f} ± {std_loss:.4f}")
+            print(f"Test Accuracy: {mean_acc:.2f}% ± {std_acc:.2f}%")
+        else:
+            print(f"Test Loss: {mean_loss:.4f} ± {std_loss:.4f}")
