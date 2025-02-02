@@ -1,0 +1,29 @@
+{
+    "model_type": "autoencoder",
+    "dataset": "mnist",
+    "batch_size": 200,
+    "epochs": 1000,
+    "seed": 42,
+    "patience": 5,
+    "optimizers": {
+        "adam": {
+            "lr": 0.001,
+            "beta1": 0.9,
+            "beta2": 0.999,
+            "epsilon": 1e-8
+        },
+        "aggmo": {
+            "lr": 0.001,
+            "betas": [0.0, 0.9, 0.99],
+            "weight_decay": 0
+        },
+        "new_optimizer": {
+            "lr": 0.001,
+            "beta1": 0.9,
+            "beta2": 0.999,
+            "epsilon": 1e-8,
+            "betas_aggmo": [0.0, 0.9, 0.99],
+            "weight_decay": 0
+        }
+    }
+}
