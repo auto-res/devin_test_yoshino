@@ -1,0 +1,29 @@
+model:
+  type: "lstm"
+
+data:
+  text_path: "/tmp/data/wikitext-2/wiki.train.tokens"
+  seq_length: 35
+  hidden_size: 1150
+  num_layers: 3
+  embedding_size: 400
+  dropout:
+    input: 0.65
+    hidden: 0.3
+    embedding: 0.1
+    
+training:
+  epochs: 750
+  batch_size: 80
+  lr_schedule:
+    type: "reduce_on_plateau"
+    factor: 0.5
+    patience: 15
+    
+optimizer:
+  lr: 1e-3
+  beta1: 0.9
+  beta2: 0.999
+  epsilon: 1e-8
+  betas_aggmo: [0.0, 0.9, 0.99]
+  weight_decay: 0
