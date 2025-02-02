@@ -82,7 +82,9 @@ def evaluate_model(
 
 if __name__ == '__main__':
     import argparse
-    from models import Autoencoder, CNN5, ResNet32, LSTM
+    from models.autoencoder import Autoencoder
+    from models.cnn import CNN5, ResNet32
+    from models.lstm import LSTM
     from preprocess import load_mnist, load_cifar, load_ptb
     
     parser = argparse.ArgumentParser()
