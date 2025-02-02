@@ -1,15 +1,5 @@
 import torch
 from typing import Iterable
-from torch.optim import Optimizer  # Please do not change this code
-
-class NewOptimizer(Optimizer):  # Please do not change the name of the class “NewOptimizer”.
-    def __init__(self, params: Iterable,...):
-        "parameter initialization"
-    
-    def step(self, closure: None = None) -> None:
-        "processing details"
-""",
-    "base_method_code": """
 from torch.optim import Optimizer
 
 class Adam(Optimizer):
