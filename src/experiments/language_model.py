@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader, Dataset
-from ..optimizers import NewOptimizer
+from ..optimizers.new_optimizer import NewOptimizer
 from .. import DATA_DIR
 
 class SimpleTextDataset(Dataset):
@@ -18,18 +18,17 @@ class SimpleTextDataset(Dataset):
         return len(self.data) - self.sequence_length - 1
         
     def __getitem__(self, idx):
-        return (
-            self.data[idx:idx + self.sequence_length],
-            self.data[idx + 1:idx + self.sequence_length + 1]
-        )
+        x = self.data[idx:idx + self.sequence_length]
+        y = self.data[idx + 1:idx + self.sequence_length + 1]
+        return x, y
 
 class LSTM(nn.Module):
-    def __init__(self, vocab_size, hidden_size, num_layers, dropout):
+    def __init__(self, vocab_size, hidden_size, num_layers, dropout, embedding_size=400):
         super().__init__()
-        self.embedding = nn.Embedding(vocab_size, hidden_size)
+        self.embedding = nn.Embedding(vocab_size, embedding_size)
         self.dropout = nn.Dropout(dropout)
         self.lstm = nn.LSTM(
-            hidden_size, hidden_size,
+            embedding_size, hidden_size,
             num_layers=num_layers,
             dropout=dropout if num_layers > 1 else 0
         )
@@ -44,11 +43,13 @@ class LSTM(nn.Module):
         self.decoder.weight.data.uniform_(-init_range, init_range)
         
     def forward(self, text, hidden=None):
-        emb = self.dropout(self.embedding(text))
+        # text shape: [batch_size, seq_len]
+        emb = self.dropout(self.embedding(text))  # [batch_size, seq_len, hidden_size]
+        emb = emb.transpose(0, 1)  # [seq_len, batch_size, hidden_size]
         output, hidden = self.lstm(emb, hidden)
         output = self.dropout(output)
-        decoded = self.decoder(output)
-        return decoded, hidden
+        decoded = self.decoder(output.view(-1, output.size(2)))
+        return decoded
 
 def batchify(data, batch_size, device):
     data = torch.tensor([t for t in data], dtype=torch.long)
@@ -72,23 +73,37 @@ def get_data_loaders(batch_size, bptt):
     val_loader = DataLoader(val_dataset, batch_size=batch_size)
     test_loader = DataLoader(test_dataset, batch_size=batch_size)
     
+    # Add collate function to handle padding if needed
+    def collate_fn(batch):
+        data = torch.stack([item[0] for item in batch])
+        target = torch.stack([item[1] for item in batch])
+        return data, target.view(-1)
+        
+    train_loader.collate_fn = collate_fn
+    val_loader.collate_fn = collate_fn
+    test_loader.collate_fn = collate_fn
+    
     vocab_size = 1000  # Same as in SimpleTextDataset
     
     return train_loader, val_loader, test_loader, vocab_size
 
 def run_language_model_experiment(config):
+    print("Setting up device...")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
+    print("Creating data loaders...")
     train_loader, val_loader, test_loader, vocab_size = get_data_loaders(
         config['optim']['batch_size'],
         config['optim']['bptt']
     )
+    print("Data loaders created successfully")
     
     model = LSTM(
         vocab_size,
         config['model']['hidden_size'],
         config['model']['num_layers'],
-        config['model']['dropout']
+        config['model']['dropout'],
+        config['model']['embedding_size']
     ).to(device)
     
     from ..train import train_model

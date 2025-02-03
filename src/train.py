@@ -1,6 +1,7 @@
 import os
 import torch
 import torch.nn as nn
+from .experiments.autoencoder import AutoEncoder
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 import json
@@ -20,6 +21,7 @@ def get_optimizer(config, parameters):
     optim_config = config['optim']['optimizer']
     name = optim_config['name']
     
+    weight_decay = config['optim'].get('wdecay', 0.0)
     if name == 'new_optimizer':
         return NewOptimizer(
             parameters,
@@ -28,14 +30,14 @@ def get_optimizer(config, parameters):
             beta2=optim_config['beta2'],
             epsilon=optim_config['epsilon'],
             betas_aggmo=optim_config['betas_aggmo'],
-            weight_decay=optim_config['weight_decay']
+            weight_decay=weight_decay
         )
     elif name == 'aggmo':
         return AggMo(
             parameters,
             lr=optim_config['lr'],
             betas=optim_config['betas'],
-            weight_decay=optim_config['weight_decay']
+            weight_decay=weight_decay
         )
     elif name == 'adam':
         return optim.Adam(
@@ -43,7 +45,7 @@ def get_optimizer(config, parameters):
             lr=optim_config['lr'],
             betas=optim_config['betas'],
             eps=optim_config['eps'],
-            weight_decay=optim_config['weight_decay']
+            weight_decay=weight_decay
         )
     else:
         raise ValueError(f'Unknown optimizer: {name}')
@@ -84,10 +86,20 @@ def train_model(model, train_loader, val_loader, config):
     )
     
     for epoch in range(config['optim']['epochs']):
+        print(f"\nEpoch {epoch+1}/{config['optim']['epochs']}")
         model.train()
         train_loss = 0.0
+        total_batches = len(train_loader)
         for batch_idx, (data, target) in enumerate(train_loader):
+            if batch_idx % 10 == 0:
+                print(f"Training batch {batch_idx}/{total_batches}", end='\r')
             data, target = data.to(device), target.to(device)
+            
+            if isinstance(model, AutoEncoder):
+                # For autoencoder, input is the target
+                target = data.clone()
+                data = data.view(data.size(0), -1)  # Flatten input
+                target = target.view(target.size(0), -1)  # Flatten target
             
             optimizer.zero_grad()
             output = model(data)
@@ -103,8 +115,18 @@ def train_model(model, train_loader, val_loader, config):
         val_loss = 0.0
         val_metric = 0.0
         with torch.no_grad():
-            for data, target in val_loader:
+            total_val_batches = len(val_loader)
+            for batch_idx, (data, target) in enumerate(val_loader):
+                if batch_idx % 5 == 0:
+                    print(f"Validation batch {batch_idx}/{total_val_batches}", end='\r')
                 data, target = data.to(device), target.to(device)
+                
+                if isinstance(model, AutoEncoder):
+                    # For autoencoder, input is the target
+                    target = data.clone()
+                    data = data.view(data.size(0), -1)  # Flatten input
+                    target = target.view(target.size(0), -1)  # Flatten target
+                
                 output = model(data)
                 val_loss += criterion(output, target).item()
                 if criterion_config['tag'] == 'acc':

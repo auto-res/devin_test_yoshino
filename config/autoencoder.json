@@ -22,7 +22,7 @@
             ],
             "last_epoch": -1
         },
-        "epochs": 2,
+        "epochs": 1000,
         "batch_size": 200,
         "wdecay": 0.0,
         "criterion": {

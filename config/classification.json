@@ -21,9 +21,9 @@
             ],
             "last_epoch": -1
         },
-        "epochs": 2,
+        "epochs": 400,
         "batch_size": 128,
-        "wdecay": 0.0005,
+        "wdecay": 5e-4,
         "criterion": {
             "tag": "acc",
             "minmax": "max"

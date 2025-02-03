@@ -49,18 +49,23 @@ class AutoEncoder(nn.Module):
         self.decoder = Decoder(input_dim, hidden_dims)
     
     def forward(self, x):
+        x = x.view(x.size(0), -1)  # Flatten to (batch_size, 784)
         x = self.encoder(x)
         x = self.decoder(x)
         return torch.sigmoid(x)
 
 def get_data_loaders(batch_size):
+    print("Setting up data transforms...")
     transform = transforms.Compose([
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Lambda(lambda x: x.float())
     ])
     
+    print("Downloading/loading MNIST dataset...")
     train_dataset = datasets.MNIST(
         DATA_DIR, train=True, download=True, transform=transform
     )
+    print("MNIST dataset loaded successfully")
     
     val_size = int(0.1 * len(train_dataset))
     train_size = len(train_dataset) - val_size
@@ -85,14 +90,17 @@ def get_data_loaders(batch_size):
     return train_loader, val_loader, test_loader
 
 def run_autoencoder_experiment(config):
+    print("Creating model...")
     model = AutoEncoder(
         input_dim=config['model']['input_dim'],
         hidden_dims=config['model']['hidden_dims']
     )
     
+    print("Setting up data loaders...")
     train_loader, val_loader, test_loader = get_data_loaders(
         config['optim']['batch_size']
     )
+    print("Data loaders created successfully")
     
     from ..train import train_model
     from ..evaluate import evaluate_model

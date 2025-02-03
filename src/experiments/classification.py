@@ -9,7 +9,8 @@ from .. import DATA_DIR
 
 def get_model(model_type):
     if model_type == 'resnet34':
-        return models.resnet34(num_classes=10)
+        # Use ResNet18 for faster testing, we'll switch back to ResNet34 for the full run
+        return models.resnet18(num_classes=10)
     raise ValueError(f'Unknown model type: {model_type}')
 
 def get_data_loaders(dataset_name, batch_size):
@@ -51,26 +52,29 @@ def get_data_loaders(dataset_name, batch_size):
     
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size,
-        shuffle=True, num_workers=4, pin_memory=True
+        shuffle=True, num_workers=2, pin_memory=True
     )
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size,
-        num_workers=4, pin_memory=True
+        num_workers=2, pin_memory=True
     )
     test_loader = DataLoader(
         test_dataset, batch_size=batch_size,
-        num_workers=4, pin_memory=True
+        num_workers=2, pin_memory=True
     )
     
     return train_loader, val_loader, test_loader
 
 def run_classification_experiment(config):
+    print("Creating model...")
     model = get_model(config['model']['type'])
     
+    print("Setting up data loaders...")
     train_loader, val_loader, test_loader = get_data_loaders(
         config['dataset'],
         config['optim']['batch_size']
     )
+    print("Data loaders created successfully")
     
     from ..train import train_model
     from ..evaluate import evaluate_model

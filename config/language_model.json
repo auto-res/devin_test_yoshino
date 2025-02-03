@@ -21,9 +21,9 @@
             ],
             "last_epoch": -1
         },
-        "epochs": 2,
-        "batch_size": 80,
-        "bptt": 70,
+        "epochs": 200,
+        "batch_size": 128,
+        "bptt": 35,
         "wdecay": 0.0,
         "criterion": {
             "tag": "perplexity",
@@ -34,6 +34,7 @@
         "type": "lstm",
         "hidden_size": 1150,
         "num_layers": 3,
-        "dropout": 0.4
+        "dropout": 0.4,
+        "embedding_size": 400
     }
 }
