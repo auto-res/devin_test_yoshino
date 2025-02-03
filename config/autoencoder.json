@@ -1,0 +1,42 @@
+{
+    "optim": {
+        "optimizer": {
+            "name": "new_optimizer",
+            "lr": 0.001,
+            "beta1": 0.9,
+            "beta2": 0.999,
+            "epsilon": 1e-08,
+            "betas_aggmo": [
+                0.0,
+                0.9,
+                0.99
+            ]
+        },
+        "lr_schedule": {
+            "name": "step",
+            "lr_decay": 0.1,
+            "milestones": [
+                200,
+                400,
+                800
+            ],
+            "last_epoch": -1
+        },
+        "epochs": 2,
+        "batch_size": 200,
+        "wdecay": 0.0,
+        "criterion": {
+            "tag": "mse",
+            "minmax": "min"
+        }
+    },
+    "model": {
+        "input_dim": 784,
+        "hidden_dims": [
+            1000,
+            500,
+            250,
+            30
+        ]
+    }
+}

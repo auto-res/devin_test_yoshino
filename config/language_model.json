@@ -1,0 +1,39 @@
+{
+    "optim": {
+        "optimizer": {
+            "name": "new_optimizer",
+            "lr": 0.001,
+            "beta1": 0.9,
+            "beta2": 0.999,
+            "epsilon": 1e-08,
+            "betas_aggmo": [
+                0.0,
+                0.9,
+                0.99
+            ]
+        },
+        "lr_schedule": {
+            "name": "step",
+            "lr_decay": 0.1,
+            "milestones": [
+                100,
+                150
+            ],
+            "last_epoch": -1
+        },
+        "epochs": 2,
+        "batch_size": 80,
+        "bptt": 70,
+        "wdecay": 0.0,
+        "criterion": {
+            "tag": "perplexity",
+            "minmax": "min"
+        }
+    },
+    "model": {
+        "type": "lstm",
+        "hidden_size": 1150,
+        "num_layers": 3,
+        "dropout": 0.4
+    }
+}
